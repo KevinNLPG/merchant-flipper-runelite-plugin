@@ -1,0 +1,117 @@
+plugins {
+	id 'java'
+}
+
+repositories {
+	mavenLocal()
+	maven {
+		url = 'https://repo.runelite.net'
+		content {
+			includeGroupByRegex("net\\.runelite.*")
+		}
+	}
+	mavenCentral()
+}
+
+def runeLiteVersion = 'latest.release'
+def pluginMainClass = 'com.merchantflipper.MerchantFlipperPluginTest'
+
+dependencies {
+	// Provided by the host RuneLite client at runtime - never bundled ourselves.
+	compileOnly group: 'net.runelite', name: 'client', version: runeLiteVersion
+
+	compileOnly 'org.projectlombok:lombok:1.18.30'
+	annotationProcessor 'org.projectlombok:lombok:1.18.30'
+
+	// Small, dedicated WebSocket *client* library used to dial out to the local
+	// desktop app. Declared as a normal `implementation` dependency (bundled with
+	// the plugin) rather than relying on any networking facility the host
+	// RuneLite client may or may not expose via its own dependency injector.
+	// See README.md ("WebSocket library choice") for why this library was picked
+	// over OkHttp.
+	implementation 'org.java-websocket:Java-WebSocket:1.6.0'
+
+	testImplementation 'junit:junit:4.12'
+	testImplementation group: 'net.runelite', name: 'client', version: runeLiteVersion
+	testImplementation group: 'net.runelite', name: 'jshell', version: runeLiteVersion
+
+	// RuneLite's `client` artifact transitively pulls logback-classic:1.2.9, which predates
+	// SLF4J 2.x's ServiceLoader-based provider mechanism. Something else on the test runtime
+	// classpath pulls slf4j-api up to 2.x, so at runtime SLF4J finds no valid 2.x provider and
+	// falls back to a no-op logger - which then crashes RuneLite.main() when it tries to cast
+	// that logger to ch.qos.logback.classic.Logger. Force a SLF4J-2.x-compatible logback so the
+	// `run` dev task (this project's test runtime classpath) actually boots the client.
+	testImplementation 'ch.qos.logback:logback-classic:1.4.14'
+}
+
+group = 'com.merchantflipper'
+version = '0.1.0'
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+	options.release.set(11)
+}
+
+test {
+	useJUnit()
+}
+
+tasks.register('run', JavaExec) {
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = pluginMainClass
+
+	jvmArgs "-ea"
+	args "--developer-mode", "--debug"
+}
+
+tasks.register('shadowJar', Jar) {
+	dependsOn configurations.testRuntimeClasspath
+	manifest {
+		attributes('Main-Class': pluginMainClass, 'Multi-Release': true)
+	}
+
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+	from sourceSets.main.output
+	from sourceSets.test.output
+	from {
+		configurations.testRuntimeClasspath.collect { file ->
+			file.isDirectory() ? file : zipTree(file)
+		}
+	}
+
+	exclude 'META-INF/INDEX.LIST'
+	exclude 'META-INF/*.SF'
+	exclude 'META-INF/*.DSA'
+	exclude 'META-INF/*.RSA'
+	exclude '**/module-info.class'
+
+	group = BasePlugin.BUILD_GROUP
+	archiveClassifier.set('shadow')
+	archiveFileName.set("${rootProject.name}-${project.version}-all.jar")
+}
+
+// For manually sideloading into an already-installed RuneLite client via its
+// `sideloaded-plugins` folder (developer mode required) - NOT the same as `shadowJar`
+// above, which bundles the whole RuneLite client + test harness for the standalone
+// `run` task. This one bundles only this plugin's own classes plus its own runtime
+// dependencies (Java-WebSocket) that the host client doesn't already provide -
+// `net.runelite:client` is `compileOnly` so it's correctly absent from
+// `runtimeClasspath` and never duplicated against the host's own copy.
+tasks.register('sideloadJar', Jar) {
+	dependsOn configurations.runtimeClasspath
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+	from sourceSets.main.output
+	from {
+		configurations.runtimeClasspath.collect { file ->
+			file.isDirectory() ? file : zipTree(file)
+		}
+	}
+	exclude 'META-INF/INDEX.LIST'
+	exclude 'META-INF/*.SF'
+	exclude 'META-INF/*.DSA'
+	exclude 'META-INF/*.RSA'
+	exclude '**/module-info.class'
+
+	group = BasePlugin.BUILD_GROUP
+	archiveFileName.set('merchant-flipper-sideload.jar')
+}
