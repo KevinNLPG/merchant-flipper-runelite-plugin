@@ -28,8 +28,13 @@ dependencies {
 	// the plugin) rather than relying on any networking facility the host
 	// RuneLite client may or may not expose via its own dependency injector.
 	// See README.md ("WebSocket library choice") for why this library was picked
-	// over OkHttp.
-	implementation 'org.java-websocket:Java-WebSocket:1.6.0'
+	// over OkHttp. Pinned to 1.5.6, not the newer 1.6.0, because that's the exact
+	// version already allowlisted/hash-verified in the Plugin Hub's own build
+	// (package/verification-template/build.gradle, used by wikisync and
+	// osrs-archipelago) - any other version fails their build with "package
+	// org.java_websocket... does not exist" since it's outside their verified
+	// dependency metadata.
+	implementation 'org.java-websocket:Java-WebSocket:1.5.6'
 
 	testImplementation 'junit:junit:4.12'
 	testImplementation group: 'net.runelite', name: 'client', version: runeLiteVersion
