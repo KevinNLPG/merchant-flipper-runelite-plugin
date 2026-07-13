@@ -23,18 +23,10 @@ dependencies {
 	compileOnly 'org.projectlombok:lombok:1.18.30'
 	annotationProcessor 'org.projectlombok:lombok:1.18.30'
 
-	// Small, dedicated WebSocket *client* library used to dial out to the local
-	// desktop app. Declared as a normal `implementation` dependency (bundled with
-	// the plugin) rather than relying on any networking facility the host
-	// RuneLite client may or may not expose via its own dependency injector.
-	// See README.md ("WebSocket library choice") for why this library was picked
-	// over OkHttp. Pinned to 1.5.6, not the newer 1.6.0, because that's the exact
-	// version already allowlisted/hash-verified in the Plugin Hub's own build
-	// (package/verification-template/build.gradle, used by wikisync and
-	// osrs-archipelago) - any other version fails their build with "package
-	// org.java_websocket... does not exist" since it's outside their verified
-	// dependency metadata.
-	implementation 'org.java-websocket:Java-WebSocket:1.5.6'
+	// WebSocket client support comes from okhttp3, which ships as a transitive
+	// dependency of net.runelite:client itself - no separate WebSocket library is
+	// declared here, so this plugin adds zero extra dependencies beyond the host
+	// client's own.
 
 	testImplementation 'junit:junit:4.12'
 	testImplementation group: 'net.runelite', name: 'client', version: runeLiteVersion
@@ -93,30 +85,4 @@ tasks.register('shadowJar', Jar) {
 	group = BasePlugin.BUILD_GROUP
 	archiveClassifier.set('shadow')
 	archiveFileName.set("${rootProject.name}-${project.version}-all.jar")
-}
-
-// For manually sideloading into an already-installed RuneLite client via its
-// `sideloaded-plugins` folder (developer mode required) - NOT the same as `shadowJar`
-// above, which bundles the whole RuneLite client + test harness for the standalone
-// `run` task. This one bundles only this plugin's own classes plus its own runtime
-// dependencies (Java-WebSocket) that the host client doesn't already provide -
-// `net.runelite:client` is `compileOnly` so it's correctly absent from
-// `runtimeClasspath` and never duplicated against the host's own copy.
-tasks.register('sideloadJar', Jar) {
-	dependsOn configurations.runtimeClasspath
-	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-	from sourceSets.main.output
-	from {
-		configurations.runtimeClasspath.collect { file ->
-			file.isDirectory() ? file : zipTree(file)
-		}
-	}
-	exclude 'META-INF/INDEX.LIST'
-	exclude 'META-INF/*.SF'
-	exclude 'META-INF/*.DSA'
-	exclude 'META-INF/*.RSA'
-	exclude '**/module-info.class'
-
-	group = BasePlugin.BUILD_GROUP
-	archiveFileName.set('merchant-flipper-sideload.jar')
 }

@@ -44,13 +44,9 @@ duplicating a single event across restarts.
 
 ## WebSocket library choice
 
-The plugin bundles [Java-WebSocket](https://github.com/TooTallNate/Java-WebSocket)
-(`org.java-websocket:Java-WebSocket`) as a normal `implementation` dependency (i.e. it ships with
-the plugin, unlike the RuneLite `client` artifact itself which is `compileOnly` / host-provided).
-This was picked over OkHttp specifically so the plugin does not depend on any networking facility
-RuneLite's own dependency injector may or may not expose to plugins - Java-WebSocket is a small,
-focused, widely-used WebSocket *client* library with no other surface area, which keeps this
-read-only sensor's footprint minimal and its behavior easy to audit.
+The plugin uses `okhttp3`'s `WebSocket` support, which ships as a transitive dependency of
+`net.runelite:client` itself - so this plugin declares no separate WebSocket dependency at all,
+keeping its footprint to exactly what the host client already provides.
 
 ## Building
 

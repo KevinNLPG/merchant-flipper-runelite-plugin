@@ -144,14 +144,7 @@ public final class ConnectionManager implements MerchantFlipperWebSocketClient.L
 		cancelHeartbeat();
 		if (s != null)
 		{
-			try
-			{
-				s.closeBlocking();
-			}
-			catch (InterruptedException e)
-			{
-				Thread.currentThread().interrupt();
-			}
+			s.closeBlocking();
 		}
 	}
 
